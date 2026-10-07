@@ -3,54 +3,52 @@
   <POU Name="VecMulMatFlat" Id="{ac3cf3c5-6bef-4f7d-8421-b73483b39492}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION VecMulMatFlat : BOOL
 VAR_INPUT
-    pVec    : POINTER TO REAL; // input vector (size N)
-    pMat    : POINTER TO REAL; // matrix as flat vector (N*M)
-    pRes    : POINTER TO REAL; // result vector (size M)
+    pVec    : POINTER TO REAL; // input vector (size nVec)
+    pMat    : POINTER TO REAL; // matrix as flat row-major array (nCols rows x nVec columns)
+    pRes    : POINTER TO REAL; // result vector (size nCols)
     nVec    : UDINT;           // vector size
-    nCols   : UDINT;           // matrix columns
+    nCols   : UDINT;           // result size (number of matrix rows)
 END_VAR
 
 VAR
     i       : UDINT;
     j       : UDINT;
+    k       : UDINT;
     sum     : REAL;
-    pV      : POINTER TO REAL;
-    pM      : POINTER TO REAL;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[
+// Computes pRes[j] := SUM_i pMat[j*nVec + i] * pVec[i],  j = 0..nCols-1
+// i.e. Res = Mat * Vec with Mat stored row-major as nCols rows of nVec elements
+// (numpy: res = mat.reshape(nCols, nVec) @ vec).
+//
+// NOTE: pointer arithmetic in TwinCAT/CODESYS is in BYTES: "p := p + 1" on a
+// POINTER TO REAL advances by 1 byte, not by one REAL. Index access p[k]
+// instead scales by SIZEOF(REAL), so only index access is used here.
 
-pM := pMat;
+IF pVec = 0 OR pMat = 0 OR pRes = 0 OR nVec = 0 OR nCols = 0 THEN
+    VecMulMatFlat := FALSE;
+    RETURN;
+END_IF
 
 FOR j := 0 TO nCols - 1 DO
 
     sum := 0.0;
-    pV := pVec;
+    k := j * nVec;  // start of row j
 
     FOR i := 0 TO nVec - 1 DO
-
-        sum := sum + pV^ * pM^;
-        pV := pV + 1;
-        pM := pM + 1;
+        sum := sum + pMat[k + i] * pVec[i];
     END_FOR
 
-	pRes[j] := sum;
+    pRes[j] := sum;
 
 END_FOR
 
 VecMulMatFlat := TRUE;]]></ST>
     </Implementation>
     <LineIds Name="VecMulMatFlat">
-      <LineId Id="23" Count="0" />
-      <LineId Id="25" Count="8" />
-      <LineId Id="92" Count="0" />
-      <LineId Id="34" Count="3" />
-      <LineId Id="77" Count="0" />
-      <LineId Id="60" Count="0" />
-      <LineId Id="58" Count="0" />
-      <LineId Id="41" Count="1" />
-      <LineId Id="7" Count="0" />
+      <LineId Id="1" Count="27" />
     </LineIds>
   </POU>
 </TcPlcObject>
