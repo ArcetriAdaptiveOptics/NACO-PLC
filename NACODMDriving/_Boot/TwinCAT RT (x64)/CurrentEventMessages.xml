@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+<TcEventSources Version="2">
+	<Source>
+		<GUID>{28111931-0002-0000-5230-EE0F00001000}</GUID>
+		<Name LcId="1031">EL4078 8K. Ana. Ausgang, +/-10V, +/-20mA, 16 Bit</Name>
+		<Name LcId="1033">EL4078 8Ch. Ana. Output, +/-10V, +/-20mA, 16 Bit</Name>
+		<Event>
+			<Id>1</Id>
+			<Message LcId="1031">Kein Fehler</Message>
+			<Message LcId="1033">No error</Message>
+		</Event>
+		<Event>
+			<Id>4480</Id>
+			<Message LcId="1031">Versorgungsspannung OK</Message>
+			<Message LcId="1033">Supply voltage OK</Message>
+		</Event>
+		<Event>
+			<Id>5895</Id>
+			<Message LcId="1031">Kanal ist nicht mehr überlastet</Message>
+			<Message LcId="1033">Channel is not in overload anymore</Message>
+		</Event>
+		<Event>
+			<Id>5896</Id>
+			<Message LcId="1031">Kanal {0} ist nicht mehr überlastet</Message>
+			<Message LcId="1033">Channel {0} is not in overload anymore</Message>
+		</Event>
+		<Event>
+			<Id>5902</Id>
+			<Message LcId="1031">Gerätetemperatur ist wieder OK</Message>
+			<Message LcId="1033">No overtemperature anymore</Message>
+		</Event>
+		<Event>
+			<Id>5903</Id>
+			<Message LcId="1031">Temperatur an Kanal {0} ist wieder OK</Message>
+			<Message LcId="1033">No overtemperature on channel {0} anymore</Message>
+		</Event>
+		<Event>
+			<Id>5904</Id>
+			<Message LcId="1031">Voller Spannungsbereich steht wieder zur Verfügung</Message>
+			<Message LcId="1033">Full voltage range is available again</Message>
+		</Event>
+		<Event>
+			<Id>16641</Id>
+			<Message LcId="1031">Klemmen-Übertemperatur</Message>
+			<Message LcId="1033">Terminal overtemperature</Message>
+		</Event>
+		<Event>
+			<Id>16642</Id>
+			<Message LcId="1031">Übertemperatur an Kanal {0}</Message>
+			<Message LcId="1033">Overtemperature on channel {0}</Message>
+		</Event>
+		<Event>
+			<Id>18192</Id>
+			<Message LcId="1031">Mehr als vier Kanäle für Stromausgabe konfiguriert, Spannungsausgabe ist auf ±5 V begrenzt</Message>
+			<Message LcId="1033">More than four channels configured for current output, voltage output is limited to ±5 V</Message>
+		</Event>
+		<Event>
+			<Id>33092</Id>
+			<Message LcId="1031">Hardwarefehler ({0})</Message>
+			<Message LcId="1033">Hardware fault ({0})</Message>
+		</Event>
+		<Event>
+			<Id>34305</Id>
+			<Message LcId="1031">Versorgungsspannung zu klein</Message>
+			<Message LcId="1033">Supply voltage too low</Message>
+		</Event>
+		<Event>
+			<Id>34567</Id>
+			<Message LcId="1031">Kanalüberlastung (Kanal {0})</Message>
+			<Message LcId="1033">Channel overload (Channel {0})</Message>
+		</Event>
+		<Event>
+			<Id>34570</Id>
+			<Message LcId="1031">Messbereichfehler des Kanals {0}</Message>
+			<Message LcId="1033">Range error of channel {0}</Message>
+		</Event>
+		<Property>
+			<Name>DisplayTxtId</Name>
+			<Value>true</Value>
+		</Property>
+	</Source>
+</TcEventSources>

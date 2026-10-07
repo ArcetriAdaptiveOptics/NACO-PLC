@@ -1,0 +1,56 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.16">
+  <POU Name="VecMulMatFlat" Id="{ac3cf3c5-6bef-4f7d-8421-b73483b39492}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION VecMulMatFlat : BOOL
+VAR_INPUT
+    pVec    : POINTER TO REAL; // input vector (size N)
+    pMat    : POINTER TO REAL; // matrix as flat vector (N*M)
+    pRes    : POINTER TO REAL; // result vector (size M)
+    nVec    : UDINT;           // vector size
+    nCols   : UDINT;           // matrix columns
+END_VAR
+
+VAR
+    i       : UDINT;
+    j       : UDINT;
+    sum     : REAL;
+    pV      : POINTER TO REAL;
+    pM      : POINTER TO REAL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+
+pM := pMat;
+
+FOR j := 0 TO nCols - 1 DO
+
+    sum := 0.0;
+    pV := pVec;
+
+    FOR i := 0 TO nVec - 1 DO
+
+        sum := sum + pV^ * pM^;
+        pV := pV + 1;
+        pM := pM + 1;
+    END_FOR
+
+	pRes[j] := sum;
+
+END_FOR
+
+VecMulMatFlat := TRUE;]]></ST>
+    </Implementation>
+    <LineIds Name="VecMulMatFlat">
+      <LineId Id="23" Count="0" />
+      <LineId Id="25" Count="8" />
+      <LineId Id="92" Count="0" />
+      <LineId Id="34" Count="3" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="41" Count="1" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

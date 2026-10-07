@@ -1,0 +1,113 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.16">
+  <POU Name="FB_LoadBinaryFile" Id="{d9543e54-23e1-40c5-b2fa-147e07b9ce83}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LoadBinaryFile
+VAR_INPUT
+    sFileName : T_MaxString;
+    pDest     : PVOID;
+    cbSize    : UDINT;
+    bExecute  : BOOL;
+END_VAR
+
+VAR_OUTPUT
+    bDone  : BOOL;
+    bBusy  : BOOL;
+    bError : BOOL;
+    nErrId : UDINT;
+END_VAR
+
+VAR
+    fbOpen  : FB_FileOpen;
+    fbRead  : FB_FileRead;
+    fbClose : FB_FileClose;
+
+    hFile : UINT;
+    step  : INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+
+
+CASE step OF
+
+0: // idle
+    IF bExecute THEN
+        bBusy := TRUE;
+        bDone := FALSE;
+        bError := FALSE;
+        step := 1;
+    END_IF
+
+
+1: // open file
+    fbOpen(
+        sNetId := '',
+        sPathName := sFileName,
+        nMode := FOPEN_MODEREAD OR FOPEN_MODEBINARY,
+        bExecute := TRUE
+    );
+
+    IF NOT fbOpen.bBusy THEN
+        IF fbOpen.bError THEN
+            bError := TRUE;
+            nErrId := fbOpen.nErrId;
+            step := 100;
+        ELSE
+            hFile := fbOpen.hFile;
+            step := 2;
+        END_IF
+    END_IF
+
+
+2: // read file
+    fbRead(
+        sNetId := '',
+        hFile := hFile,
+        pReadBuff := pDest,
+        cbReadLen := cbSize,
+        bExecute := TRUE
+    );
+
+    IF NOT fbRead.bBusy THEN
+        IF fbRead.bError THEN
+            bError := TRUE;
+            nErrId := fbRead.nErrId;
+            step := 100;
+        ELSE
+            step := 3;
+        END_IF
+    END_IF
+
+
+3: // close file
+    fbClose(
+        sNetId := '',
+        hFile := hFile,
+        bExecute := TRUE
+    );
+
+    IF NOT fbClose.bBusy THEN
+        step := 10;
+    END_IF
+
+
+10: // finished
+    bBusy := FALSE;
+    bDone := TRUE;
+
+    IF NOT bExecute THEN
+        step := 0;
+    END_IF
+
+
+100: // error
+    bBusy := FALSE;
+
+END_CASE]]></ST>
+    </Implementation>
+    <LineIds Name="FB_LoadBinaryFile">
+      <LineId Id="32" Count="77" />
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,308 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.16">
+  <POU Name="SampleUdpEchoServer" Id="{9ab8310f-eb11-4595-ad55-314e72a6fce9}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'c++_compatible'}
+FUNCTION_BLOCK SampleUdpEchoServer IMPLEMENTS ITcIoUdpProtocolRecv
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+	{attribute 'TcInitSymbol'}
+    oid:              OTCID;
+	ipUdp:            ITcIoUdpProtocol;
+	nUdpPort:         UINT := 10000;
+	nReceivedPackets: UINT;
+	hrInit:           HRESULT;
+	hrSend:           HRESULT;
+	
+	
+	step:          UINT := 2;
+	nModes:           UINT := 185;
+	nActs:            UINT := 185;
+	
+	m2cMatrix:        ARRAY[0..185*185-1] OF REAL;
+	m2cFilename:      STRING := 'C:\TwinCAT\3.1\Boot\eye185.bin';
+    fbLoad:           FB_LoadBinaryFile;
+
+	counter: UINT := 0;
+
+	value0 AT %Q*:    REAL;
+	value1 AT %Q*:    REAL;
+
+
+	i: INT;
+	value: INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+FOR i := 0 TO 184 DO
+	m2cMatrix[i*185+i] := 1.0;
+END_FOR;
+
+CASE step OF
+
+0: 
+    fbLoad(
+      sFileName := m2cFilename,
+      pDest := ADR(m2cMatrix),
+      cbSize := SIZEOF(m2cMatrix),
+      bExecute := TRUE
+	);
+	step := 1;
+	
+1:
+	IF fbLoad.bDone THEN
+		step  := 2;
+	END_IF
+
+2: // start listening for UDP packets
+
+	IF ipUdp <> 0 THEN
+		ipUdp.CheckReceived();
+	END_IF
+
+END_CASE
+]]></ST>
+    </Implementation>
+    <Method Name="FB_exit" Id="{d50239b7-f139-450f-8920-7a3ef99a3ea1}">
+      <Declaration><![CDATA[METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL; // if TRUE, the exit method is called for exiting an instance that is copied afterwards (online change).
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (NOT bInCopyCode AND ipUdp <> 0) THEN //Shutdown
+     ipUdp.UnregisterReceiver(nUdpPort);
+     FW_SafeRelease(ADR(ipUdp));
+     FB_exit := TRUE;
+ELSE
+     FB_exit := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_init" Id="{34877cfc-0b22-4fb4-a4e4-fbd786f2bffb}">
+      <Declaration><![CDATA[METHOD FB_init : BOOL
+VAR_INPUT
+	bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+	bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into the copy code (online change)
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN // no online change
+    IF ipUdp = 0 AND oid <> 0 THEN
+     hrInit := FW_ObjMgr_GetObjectInstance(oid:=oid, iid:=TC_GLOBAL_IID_LIST.IID_ITcIoUdpProtocol, pipUnk:=ADR(ipUdp) );
+        IF SUCCEEDED(hrInit) THEN 
+            IF SUCCEEDED(ipUdp.RegisterReceiver(nUdpPort, THIS^)) THEN //open port
+                FB_init := TRUE;
+            ELSE 
+                FB_init := FALSE; 
+                FW_SafeRelease(ADR(ipUdp));
+            END_IF
+        END_IF
+    ELSIF oid = 0 THEN 
+        FB_init := FALSE; 
+        hrInit := ERR_INVALID_PARAM;                 
+    END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_reinit" Id="{d6baa477-95b4-4e81-9ab3-0bc8273c11da}">
+      <Declaration><![CDATA[METHOD FB_reinit : BOOL
+VAR_INPUT
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF (ipUdp <> 0) THEN 
+   ipUdp.RegisterReceiver(nUdpPort, THIS^);
+   FB_reinit := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ReceiveData" Id="{3497d4fd-47fe-4e3d-8dcb-1da99f7b9cdf}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{warning 'add method implementation '}
+METHOD ReceiveData : HRESULT
+VAR_INPUT
+	ipAddr	: UDINT;
+	udpDestPort	: UINT;
+	udpSrcPort	: UINT;
+	nData	: UDINT;
+	pData	: PVOID;
+	pVlan	: POINTER TO ETYPE_VLAN_HEADER := 0;
+END_VAR
+
+VAR
+	dati:  STRING :=  'ciaociao';
+	pDati : PVOID :=  0;
+
+	pModes :    POINTER TO ARRAY[0..185-1] OF REAL;	
+    Commands :  ARRAY[0..185-1] OF REAL;
+
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[nReceivedPackets := nReceivedPackets+1;
+//lastReceivedIP.ipadrIPStack := ipAddr;
+
+counter := counter + 1;
+
+pDati := ADR(dati);
+IF ipUdp <> 0 THEN
+	
+	pModes := pData;
+	
+	VecMulMatFlat(
+		pData,
+		ADR(m2cMatrix[0]),
+    	ADR(Commands[0]),
+    	185,
+		185,
+ 	);
+	
+	// TODO debug modal projection and set outputs
+	
+//	value0 := Commands[0];
+//	value1 := Commands[1];
+//	value0 := m2cMatrix[185];
+//	value1 := m2cMatrix[186];
+
+	value0 := pModes^[0];
+	value1 := pModes^[1];
+	
+	ipUdp.SendData(ipAddr, udpSrcPort, udpDestPort, 8, pDati, TRUE, 0); // send data back
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TcAddRef" Id="{cb5eb8f0-8e85-47c3-9165-4e511c63d67d}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{warning 'add method implementation '}
+METHOD TcAddRef : UDINT
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TcQueryInterface" Id="{19d31adc-8f1b-4474-83a7-1f1df5e3e5fc}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{warning 'add method implementation '}
+METHOD TcQueryInterface : HRESULT
+VAR_INPUT
+	iid	: REFERENCE TO IID;
+	pipItf	: POINTER TO PVOID;
+END_VAR
+VAR
+   ipUdpRecv : ITcIoUdpProtocolRecv;
+   ipUnknown : ITcUnknown;   
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF GuidsEqual(ADR(iid), ADR(TC_GLOBAL_IID_LIST.IID_ITcIoUdpProtocolRecv)) THEN
+    ipUdpRecv := THIS^; // cast to interface pointer
+    pipItf^ := ITCUNKNOWN_TO_PVOID(ipUdpRecv);
+    TcAddRef();
+    TcQueryInterface := S_OK;
+ELSIF GuidsEqual(ADR(iid), ADR(TC_GLOBAL_IID_LIST.IID_ITcUnknown)) THEN
+    ipUnknown := THIS^; // cast to interface pointer
+    pipItf^ := ITCUNKNOWN_TO_PVOID(ipUnknown);
+    TcAddRef();
+    TcQueryInterface := S_OK;
+ELSE
+    TcQueryInterface := E_HRESULTAdsErr.NOINTERFACE ; //Call super if this fb extends some other
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TcRelease" Id="{54c2922f-ec00-4cbc-a530-6f4aa5e9a3f5}">
+      <Declaration><![CDATA[{attribute 'TcTypeSystem'}
+{attribute 'no-analysis'}
+{attribute 'c++_compatible'}
+{attribute 'minimal_input_size' := '4'}
+{attribute 'pack_mode' := '4'}
+{warning 'add method implementation '}
+METHOD TcRelease : UDINT
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="SampleUdpEchoServer">
+      <LineId Id="176" Count="0" />
+      <LineId Id="178" Count="0" />
+      <LineId Id="182" Count="0" />
+      <LineId Id="177" Count="0" />
+      <LineId Id="71" Count="3" />
+      <LineId Id="125" Count="4" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="130" Count="2" />
+      <LineId Id="134" Count="2" />
+      <LineId Id="124" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="111" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="23" Count="1" />
+      <LineId Id="115" Count="1" />
+      <LineId Id="114" Count="0" />
+    </LineIds>
+    <LineIds Name="SampleUdpEchoServer.FB_exit">
+      <LineId Id="7" Count="5" />
+      <LineId Id="6" Count="0" />
+    </LineIds>
+    <LineIds Name="SampleUdpEchoServer.FB_init">
+      <LineId Id="8" Count="14" />
+      <LineId Id="7" Count="0" />
+    </LineIds>
+    <LineIds Name="SampleUdpEchoServer.FB_reinit">
+      <LineId Id="6" Count="2" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="SampleUdpEchoServer.ReceiveData">
+      <LineId Id="18" Count="1" />
+      <LineId Id="103" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="46" Count="1" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="56" Count="1" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="70" Count="1" />
+      <LineId Id="105" Count="0" />
+      <LineId Id="107" Count="0" />
+      <LineId Id="106" Count="0" />
+      <LineId Id="112" Count="1" />
+      <LineId Id="108" Count="2" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="17" Count="0" />
+    </LineIds>
+    <LineIds Name="SampleUdpEchoServer.TcAddRef">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+    <LineIds Name="SampleUdpEchoServer.TcQueryInterface">
+      <LineId Id="25" Count="11" />
+      <LineId Id="13" Count="0" />
+    </LineIds>
+    <LineIds Name="SampleUdpEchoServer.TcRelease">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>
