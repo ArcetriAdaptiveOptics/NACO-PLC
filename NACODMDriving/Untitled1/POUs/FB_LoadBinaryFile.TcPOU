@@ -13,7 +13,8 @@ VAR_OUTPUT
     bDone  : BOOL;
     bBusy  : BOOL;
     bError : BOOL;
-    nErrId : UDINT;
+    nErrId : UDINT;   // 16#FFFF: file shorter than cbSize
+    cbRead : UDINT;   // bytes actually read
 END_VAR
 
 VAR
@@ -30,11 +31,17 @@ END_VAR]]></Declaration>
 
 CASE step OF
 
-0: // idle
+0: // idle: reset the file FBs so that the next bExecute gives them a rising edge
+    fbOpen(sNetId := '', bExecute := FALSE);
+    fbRead(sNetId := '', bExecute := FALSE);
+    fbClose(sNetId := '', bExecute := FALSE);
+
     IF bExecute THEN
         bBusy := TRUE;
         bDone := FALSE;
         bError := FALSE;
+        nErrId := 0;
+        cbRead := 0;
         step := 1;
     END_IF
 
@@ -69,13 +76,15 @@ CASE step OF
     );
 
     IF NOT fbRead.bBusy THEN
+        cbRead := fbRead.cbRead;
         IF fbRead.bError THEN
             bError := TRUE;
             nErrId := fbRead.nErrId;
-            step := 100;
-        ELSE
-            step := 3;
+        ELSIF cbRead <> cbSize THEN
+            bError := TRUE;
+            nErrId := 16#FFFF;
         END_IF
+        step := 3; // close the file also on error
     END_IF
 
 
@@ -87,7 +96,11 @@ CASE step OF
     );
 
     IF NOT fbClose.bBusy THEN
-        step := 10;
+        IF bError THEN
+            step := 100;
+        ELSE
+            step := 10;
+        END_IF
     END_IF
 
 
@@ -102,6 +115,10 @@ CASE step OF
 
 100: // error
     bBusy := FALSE;
+
+    IF NOT bExecute THEN
+        step := 0;
+    END_IF
 
 END_CASE]]></ST>
     </Implementation>
